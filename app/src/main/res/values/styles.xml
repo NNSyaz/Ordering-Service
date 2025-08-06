@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base Application Theme -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorPrimaryVariant">@color/primary_blue_dark</item>
+        <item name="colorOnPrimary">@color/text_light</item>
+
+        <item name="colorSecondary">@color/accent_gold</item>
+        <item name="colorSecondaryVariant">@color/accent_gold</item>
+        <item name="colorOnSecondary">@color/primary_blue</item>
+
+        <item name="android:colorBackground">@color/background_primary</item>
+        <item name="colorSurface">@color/background_secondary</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        <item name="colorOnSurface">@color/text_secondary</item>
+
+        <!-- Force landscape orientation -->
+        <item name="android:screenOrientation">landscape</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <!-- Primary Button Style -->
+    <style name="AppButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="cornerRadius">20dp</item>
+        <item name="android:elevation">8dp</item>
+    </style>
+
+    <!-- Large Title Text Style -->
+    <style name="AppHeadline1" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">48sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <!-- Medium Title Text Style -->
+    <style name="AppHeadline2" parent="TextAppearance.MaterialComponents.Headline2">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
+    <!-- Subtitle Text Style -->
+    <style name="AppSubtitle1" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
+
+    <!-- Body Text Style -->
+    <style name="AppBody1" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+    </style>
+
+    <!-- Card Style for Main Options -->
+    <style name="AppCardView" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">12dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?android:attr/selectableItemBackground</item>
+    </style>
+
+    <!-- Header Card Style -->
+    <style name="AppHeaderCard" parent="AppCardView">
+        <item name="cardBackgroundColor">@color/primary_blue</item>
+        <item name="cardElevation">16dp</item>
+        <item name="android:layout_marginStart">24dp</item>
+        <item name="android:layout_marginEnd">24dp</item>
+        <item name="android:layout_marginTop">20dp</item>
+    </style>
+
+    <!-- Table Item Style -->
+    <style name="AppTableCard" parent="AppCardView">
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">8dp</item>
+        <item name="android:layout_margin">12dp</item>
+    </style>
+
+    <!-- Battery Status Style -->
+    <style name="AppBatteryText" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Order Number Badge Style -->
+    <style name="AppOrderNumberText" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/primary_blue</item>
+    </style>
+
+    <!-- Navigation Button Style -->
+    <style name="AppNavigationButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="strokeColor">@color/primary_blue_light</item>
+        <item name="android:textColor">@color/text_light</item>
+        <item name="backgroundTint">@color/primary_blue_light</item>
+    </style>
+
+    <!-- Simple Button Styles -->
+    <style name="GreenButton" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/button_primary</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">20dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="BlueButton" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/button_secondary</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">20dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="GrayButton" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/button_tertiary</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="cornerRadius">20dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+</resources>

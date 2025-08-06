@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Disabled state (occupied tables) -->
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="#F44336" />
+            <corners android:radius="20dp" />
+            <stroke android:width="3dp" android:color="#B71C1C" />
+        </shape>
+    </item>
+
+    <!-- Pressed state -->
+    <item android:state_pressed="true" android:state_enabled="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#45A049" />
+            <corners android:radius="20dp" />
+            <stroke android:width="3dp" android:color="#1B5E20" />
+        </shape>
+    </item>
+
+    <!-- Focused state -->
+    <item android:state_focused="true" android:state_enabled="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#4CAF50" />
+            <corners android:radius="20dp" />
+            <stroke android:width="4dp" android:color="#2196F3" />
+        </shape>
+    </item>
+
+    <!-- Reserved state -->
+    <item android:state_selected="true" android:state_enabled="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#FF9800" />
+            <corners android:radius="20dp" />
+            <stroke android:width="3dp" android:color="#E65100" />
+        </shape>
+    </item>
+
+    <!-- Default state (available tables) -->
+    <item android:state_enabled="true">
+        <shape android:shape="rectangle">
+            <solid android:color="#4CAF50" />
+            <corners android:radius="20dp" />
+            <stroke android:width="3dp" android:color="#2E7D32" />
+        </shape>
+    </item>
+
+</selector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Restaurant Assistant</string>
+    <string name="welcome_message">Welcome to our restaurant!\nHow would you like to order today?</string>
+    <string name="dine_in">🍽️ DINE IN</string>
+    <string name="takeaway">🥡 TAKEAWAY</string>
+    <string name="select_table">Select Your Table</string>
+    <string name="battery_status">Battery: %1$d%%</string>
+    <string name="table_available">Available</string>
+    <string name="table_occupied">Occupied</string>
+    <string name="navigation_status">Navigating to %1$s...</string>
+    <string name="order_complete">✅ COMPLETE ORDER</string>
+    <string name="back_button">← Back</string>
+    <string name="temi_restaurant_assistant">TEMI Restaurant Assistant</string>
+</resources>

@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Temi SDK Repository
+        maven { url = uri("https://maven.robotemi.com") }
+    }
+}
+
+
+rootProject.name = "Ordering Service"
+include ':app'

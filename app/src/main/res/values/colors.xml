@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary_blue">#1A237E</color>
+    <color name="primary_blue_light">#3949AB</color>
+    <color name="primary_blue_dark">#0D47A1</color>
+
+    <!-- Secondary Colors -->
+    <color name="accent_gold">#FFD700</color>
+    <color name="success_green">#4CAF50</color>
+    <color name="warning_orange">#FF5722</color>
+    <color name="info_blue">#2196F3</color>
+    <color name="neutral_gray">#9E9E9E</color>
+
+    <!-- Background Colors -->
+    <color name="background_primary">#F8F9FA</color>
+    <color name="background_secondary">#FFFFFF</color>
+    <color name="card_background">#FAFAFA</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#1A237E</color>
+    <color name="text_secondary">#424242</color>
+    <color name="text_tertiary">#666666</color>
+    <color name="text_light">#FFFFFF</color>
+
+    <!-- Button Colors -->
+    <color name="button_primary">#4CAF50</color>
+    <color name="button_primary_pressed">#45A049</color>
+    <color name="button_secondary">#2196F3</color>
+    <color name="button_secondary_pressed">#1976D2</color>
+    <color name="button_tertiary">#9E9E9E</color>
+    <color name="button_tertiary_pressed">#757575</color>
+    <color name="button_disabled">#E0E0E0</color>
+
+    <!-- Success Button -->
+    <color name="button_success">#4CAF50</color>
+    <color name="button_success_pressed">#45A049</color>
+
+    <!-- Status Colors -->
+    <color name="battery_good">#4CAF50</color>
+    <color name="battery_medium">#FF9800</color>
+    <color name="battery_low">#F44336</color>
+
+    <!-- Table Status Colors -->
+    <color name="table_available">#4CAF50</color>
+    <color name="table_occupied">#F44336</color>
+    <color name="table_reserved">#FF9800</color>
+    <color name="table_processing">#9E9E9E</color>     <!-- Orange for processing -->
+    <color name="table_out_of_order">#9E9E9E</color>   <!-- Gray for out of order -->
+
+    <!-- Order Status Colors -->
+    <color name="order_number_color">#1A237E</color>
+    <color name="complete_order_button">#4CAF50</color>
+
+    <!-- Option Colors -->
+    <color name="qr_option_background">#2196F3</color>
+    <color name="temi_option_background">#4CAF50</color>
+    <color name="no_order_background">#9E9E9E</color>
+    <color name="option_subtitle_color">#E3F2FD</color>
+
+    <!-- Header Colors -->
+    <color name="header_background">#1A237E</color>
+
+    <!-- Additional colors that might be referenced -->
+    <color name="colorPrimary">#1A237E</color>
+    <color name="colorPrimaryDark">#0D47A1</color>
+    <color name="colorAccent">#FFD700</color>
+
+    <!-- Transparent colors for effects -->
+    <color name="transparent">#00000000</color>
+    <color name="semi_transparent_white">#66FFFFFF</color>
+    <color name="semi_transparent_black">#66000000</color>
+</resources>
