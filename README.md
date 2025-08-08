@@ -13,6 +13,8 @@ An Android application for an ordering service robot that assists customers with
 - **Error Handling** – Includes fallbacks for navigation, TTS, and server request failures.
 
 ## 📂 Project Structure
+
+```
 app/
 ├── manifests/
 ├── kotlin+java/
@@ -32,34 +34,99 @@ app/
 ├── java/ (generated)
 ├── res/
 └── Gradle Scripts
+```
+## 🔄 Application Flow
 
-## 🔄 Workflow
+1. **Initialization**
+   - Robot readiness check
+   - Battery level monitoring
+   - Table status synchronization
 
-Below is a simplified overview of the app's logic:
+2. **Navigation**
+   - Automatic movement to greeting position
+   - Fallback to current position if navigation fails
 
-The robot follows this process:
-1. Initialize and check readiness.
-2. Monitor battery and charge if low.
-3. Navigate to standby or alternative location.
-4. Greet customers and display ordering options.
-5. Handle dine-in, takeaway, or timeout scenarios.
-6. Communicate with the server to track table and order status.
-7. End session or loop back for continuous service.
+3. **Customer Greeting**
+   - Automated welcome message
+   - Present ordering options (Dine-in / Takeaway)
 
-## 🖥️ Backend
+4. **Order Processing**
+   - **Dine-in**: Table selection → Order placement
+   - **Takeaway**: Direct order or QR code selection
 
-This project communicates with a **Google Apps Script** backend to:
-- Log table occupation and release.
-- Record QR selections.
-- Register orders and generate order numbers.
-- Maintain a real-time table status map.
+5. **Backend Integration**
+   - Real-time table status updates
+   - Order number generation
+   - Data logging and analytics
 
-## 🛠️ Tech Stack
+## 🔧 Configuration
 
-- **Android (Java/Kotlin)** – Main application logic.
-- **Google Apps Script** – Backend order & table status management.
-- **Temi SDK** – Robot navigation and interaction.
-- **REST API** – Communication between app and backend.
+### Robot Locations Setup
+Configure these locations on your Temi robot:
+- `standby`: Primary greeting position
+- `home base`: Charging station
+- Additional fallback locations as needed
+
+### Battery Thresholds
+- **Low Battery Warning**: 25%
+- **Critical Battery**: 15% (automatic return to charging)
+
+### Timeouts
+- **User Interaction**: 60 seconds
+- **Auto Greeting Delay**: 3 seconds
+- **Table Occupation Duration**: 30 minutes
+
+## 📡 API Integration
+
+The app communicates with a Google Apps Script backend for:
+
+### Endpoints Used
+- `POST /`: Send order and table status updates
+- `GET /?action=get_table_status`: Fetch current table occupancy
+
+### Data Synchronization
+- **table_occupied**: When customer selects dine-in table
+- **qr_selected**: When customer chooses QR code ordering
+- **order_placed**: When order is completed
+- **table_released**: When dining session ends
+
+## 🚨 Error Handling
+
+- **Navigation Failures**: Fallback to current position
+- **Network Issues**: Local caching with periodic retry
+- **Speech Synthesis Errors**: Continue with visual interface
+- **Battery Critical**: Automatic charging station return
+- **Server Unavailable**: Local state management
+
+## 🔍 Monitoring & Debugging
+
+### Logging
+The application provides comprehensive logging:
+- Robot navigation status
+- Table occupancy changes  
+- Server communication
+- Error conditions
+
+### Debug Features
+- Real-time battery display
+- Table status indicators
+- Server connectivity status
+- Detailed error messages
+
+## 🧪 Testing
+
+### Manual Testing Scenarios
+1. **Robot Navigation**: Test movement to all configured locations
+2. **Battery Simulation**: Test low/critical battery responses
+3. **Network Interruption**: Verify fallback behavior
+4. **Table Management**: Confirm accurate occupancy tracking
+5. **Order Flow**: Complete end-to-end ordering scenarios
+
+### Recommended Testing Environment
+- Controlled restaurant environment
+- Multiple table configurations
+- Network reliability testing
+- Extended operation testing
 
 ## 🚀 Getting Started
 
