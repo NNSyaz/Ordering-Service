@@ -13,6 +13,7 @@ An Android application for an ordering service robot that assists customers with
 - **Error Handling** – Includes fallbacks for navigation, TTS, and server request failures.
   
 📱 System Architecture
+```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Temi Robot    │    │  Android App    │    │  Google Apps    │
 │                 │◄──►│                 │◄──►│     Script      │
@@ -20,7 +21,7 @@ An Android application for an ordering service robot that assists customers with
 │  - Speech       │    │  - State Mgmt   │    │  - Table Status │
 │  - Battery      │    │  - API Calls    │    │  - Order Mgmt   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-
+```
 ## 📂 Project Structure
 
 ```
