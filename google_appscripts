@@ -1,0 +1,535 @@
+function doPost(e) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    
+    // Parse the incoming data
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch (parseError) {
+      console.error('Failed to parse JSON:', parseError);
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: "error",
+          message: "Invalid JSON data",
+          timestamp: new Date().getTime()
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    console.log('Received data:', JSON.stringify(data));
+    const now = new Date();
+    
+    // Handle different types of requests
+    if (data.status === 'table_occupied') {
+      // Table occupation request (dine-in only) - NO order number generated
+      const occupiedUntil = new Date(now.getTime() + 30 * 60000); // 30 mins later
+      
+      sheet.appendRow([
+        now,
+        data.session_id,
+        normalizeTableId(data.table_id || data.table_no), // FIXED: Normalize table ID
+        data.order_type || 'dine-in',
+        "Table Occupied - QR Available",
+        "Table Occupied", // FIXED: Use consistent status
+        data.battery ? data.battery + "%" : "N/A",
+        occupiedUntil,
+        data.customer_name || "Guest",
+        "" // Order Number (empty - will be filled when actual order is placed)
+      ]);
+      
+    } else if (data.status === 'qr_selected') {
+      // NEW: QR selection request - Log but don't generate order number yet
+      console.log(`QR selected for ${data.order_type} by session ${data.session_id}`);
+      
+      if (data.order_type === 'takeaway') {
+        // For takeaway, just log the QR selection - order number comes when actual order is placed
+        sheet.appendRow([
+          now,
+          data.session_id,
+          'takeaway',
+          data.order_type,
+          "QR Code Selected - Customer will order via mobile",
+          "QR Selected",
+          data.battery ? data.battery + "%" : "N/A",
+          now,
+          data.customer_name || "Guest",
+          "" // Order Number (empty - will be filled when actual order is placed)
+        ]);
+      }
+      
+      // Return success without order number
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: "success",
+          message: "QR selection logged",
+          timestamp: now.getTime()
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+        
+    } else if (data.status === 'table_released') {
+      // Table release request
+      updateTableStatus(data.session_id, data.table_id || data.table_no, "Available", "Table Released");
+      
+    } else if (data.status === 'order_placed') {
+      // Order placement request - generate order number and update/create row
+      const orderNumber = generateOrderNumber(data.order_type);
+      
+      // Check if this is a QR-based order by looking for existing session entry
+      const existingEntry = findExistingSessionEntry(data.session_id, data.table_no, data.order_type);
+      
+      if (existingEntry) {
+        // Update existing entry with order details
+        updateExistingRowWithOrder(existingEntry.row, data.menu_items, data.battery, data.customer_name, data.total_amount, orderNumber, data.order_type);
+        console.log(`Updated existing ${data.order_type} entry (row ${existingEntry.row}) with order ${orderNumber}`);
+      } else {
+        // Create new order row (for direct web orders without prior Temi interaction)
+        const occupiedUntil = data.order_type === 'dine-in' 
+          ? new Date(now.getTime() + 30 * 60000) // 30 minutes for dine-in
+          : now; // Immediate for takeaway
+          
+        const orderInfo = data.menu_items && data.menu_items.length > 0 
+          ? data.menu_items.join(", ") + ` (Total: RM ${data.total_amount})` 
+          : "Order placed via QR Code";
+        
+        sheet.appendRow([
+          now,
+          data.session_id,
+          normalizeTableId(data.table_no) || 'takeaway', // FIXED: Normalize table ID
+          data.order_type || "dine-in",
+          orderInfo,
+          "Table Occupied", // FIXED: Use consistent status that indicates table is occupied
+          data.battery ? data.battery + "%" : "N/A",
+          occupiedUntil,
+          data.customer_name || "Guest",
+          orderNumber
+        ]);
+        console.log(`Created new order row with order ${orderNumber}`);
+      }
+      
+      // Return success with order number
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          status: "success",
+          message: "Order placed successfully",
+          order_number: orderNumber,
+          timestamp: now.getTime()
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      
+    } else {
+      // Unknown request type - log it anyway
+      sheet.appendRow([
+        now,
+        data.session_id || "Unknown",
+        normalizeTableId(data.table_no || data.table_id) || "Unknown",
+        data.order_type || "Unknown",
+        JSON.stringify(data),
+        "Unknown Request",
+        data.battery ? data.battery + "%" : "N/A",
+        now,
+        data.customer_name || "Guest",
+        "" // Order Number (empty for unknown requests)
+      ]);
+    }
+    
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Data logged successfully",
+        timestamp: now.getTime()
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    console.error('Error in doPost:', error);
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        status: "error",
+        message: "Failed to log data: " + error.toString(),
+        timestamp: new Date().getTime()
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ENHANCED: Find existing session entry for both dine-in and takeaway
+function findExistingSessionEntry(sessionId, tableNo, orderType) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    const data = sheet.getDataRange().getValues();
+    
+    console.log(`Looking for existing session entry: ${sessionId}, ${tableNo}, ${orderType}`);
+    
+    // Look for existing entry from the same session
+    for (let i = data.length - 1; i >= 1; i--) { // Start from bottom, skip header
+      const row = data[i];
+      const rowSessionId = row[1];
+      const rowTableNo = normalizeTableId(row[2]);
+      const rowOrderType = (row[3] || '').toLowerCase().trim();
+      const rowStatus = row[5];
+      const rowOrderNumber = row[9];
+      
+      // Normalize order types for comparison
+      const normalizedOrderType = (orderType || '').toLowerCase().trim();
+      const normalizedRowOrderType = rowOrderType === 'dine-in' ? 'dine-in' : 
+                                    rowOrderType === 'takeaway' ? 'takeaway' : rowOrderType;
+      const targetOrderType = normalizedOrderType === 'dine-in' ? 'dine-in' : 
+                             normalizedOrderType === 'takeaway' ? 'takeaway' : normalizedOrderType;
+      
+      // Check if this row matches our session and order type, and doesn't have an order number yet
+      const sessionMatches = rowSessionId === sessionId;
+      const orderTypeMatches = normalizedRowOrderType === targetOrderType;
+      const noOrderNumber = (!rowOrderNumber || rowOrderNumber === "");
+      
+      // For dine-in: check table matches and status indicates table is occupied
+      // For takeaway: just check session and order type
+      const isValidEntry = orderType === 'takeaway' 
+        ? (rowStatus === "QR Selected" || rowTableNo === 'takeaway')
+        : (normalizeTableId(tableNo) === rowTableNo && 
+           (rowStatus === "Table Occupied" || rowStatus === "Occupied" || rowStatus === "Pending"));
+      
+      if (sessionMatches && orderTypeMatches && noOrderNumber && isValidEntry) {
+        console.log(`Found existing ${orderType} entry at row ${i + 1}`);
+        return { row: i + 1, data: row }; // Return 1-based row number for spreadsheet
+      }
+    }
+    
+    console.log(`No existing session entry found for ${sessionId}`);
+    return null;
+  } catch (error) {
+    console.error('Error finding existing session entry:', error);
+    return null;
+  }
+}
+
+// ENHANCED: Update existing row with order details for both dine-in and takeaway
+function updateExistingRowWithOrder(rowNumber, menuItems, battery, customerName, totalAmount, orderNumber, orderType) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    
+    const orderInfo = menuItems && menuItems.length > 0 
+      ? menuItems.join(", ") + ` (Total: RM ${totalAmount})` 
+      : "Order placed via QR Code";
+    
+    // Set appropriate end time based on order type
+    const endTime = orderType === 'dine-in' 
+      ? new Date(new Date().getTime() + 30 * 60000) // 30 minutes for dine-in
+      : new Date(); // Immediate for takeaway
+    
+    // Update the existing row with order information
+    sheet.getRange(rowNumber, 5).setValue(orderInfo); // Column E: Order Info
+    sheet.getRange(rowNumber, 6).setValue("Table Occupied"); // Column F: Status - FIXED: Keep table as occupied
+    sheet.getRange(rowNumber, 7).setValue(battery ? battery + "%" : "N/A"); // Column G: Battery
+    sheet.getRange(rowNumber, 8).setValue(endTime); // Column H: End time
+    sheet.getRange(rowNumber, 9).setValue(customerName || "Guest"); // Column I: Customer Name
+    sheet.getRange(rowNumber, 10).setValue(orderNumber); // Column J: Order Number
+    
+    console.log(`Successfully updated row ${rowNumber} with ${orderType} order ${orderNumber}`);
+  } catch (error) {
+    console.error('Error updating existing row with order:', error);
+    throw error;
+  }
+}
+
+// Order number generation (unchanged)
+function generateOrderNumber(orderType) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    const data = sheet.getDataRange().getValues();
+    
+    // Normalize order type
+    const normalizedOrderType = (orderType || '').toLowerCase().trim();
+    const isTakeaway = normalizedOrderType === 'takeaway';
+    
+    const baseNumber = isTakeaway ? 2000 : 1000;
+    const maxNumber = isTakeaway ? 2999 : 1999;
+    
+    let lastOrderNumber = 0;
+    const today = new Date();
+    const todayString = today.toDateString();
+    
+    console.log(`Generating order number for ${normalizedOrderType}, base: ${baseNumber}`);
+    
+    // Find the highest order number for this order type TODAY
+    for (let i = 1; i < data.length; i++) { // Skip header row
+      const row = data[i];
+      const rowDate = new Date(row[0]); // Column A: Timestamp
+      const rowOrderType = (row[3] || '').toLowerCase().trim(); // Column D: Order Type
+      const orderNumberCell = row[9]; // Column J: Order Number
+      
+      // Skip rows from different days
+      if (rowDate.toDateString() !== todayString) {
+        continue;
+      }
+      
+      // Parse order number - handle both string and number formats
+      let orderNumber = 0;
+      if (orderNumberCell) {
+        if (typeof orderNumberCell === 'number') {
+          orderNumber = orderNumberCell;
+        } else {
+          const parsed = parseInt(orderNumberCell.toString());
+          if (!isNaN(parsed)) {
+            orderNumber = parsed;
+          }
+        }
+      }
+      
+      // Check if this order is for the same type and within our range
+      const sameType = (rowOrderType === normalizedOrderType) || 
+                      (isTakeaway && rowOrderType === 'takeaway') ||
+                      (!isTakeaway && (rowOrderType === 'dine-in' || rowOrderType === 'dine in'));
+      
+      if (sameType && orderNumber >= baseNumber && orderNumber <= maxNumber) {
+        if (orderNumber > lastOrderNumber) {
+          lastOrderNumber = orderNumber;
+        }
+        console.log(`Found existing order: ${orderNumber} for type: ${rowOrderType}`);
+      }
+    }
+    
+    // Generate next order number
+    const nextOrderNumber = lastOrderNumber === 0 ? baseNumber : lastOrderNumber + 1;
+    
+    // Handle overflow - reset to base number if needed
+    if (nextOrderNumber > maxNumber) {
+      const resetNumber = baseNumber;
+      console.log(`Order number overflow, resetting to base: ${resetNumber}`);
+      return resetNumber;
+    }
+    
+    console.log(`Generated order number: ${nextOrderNumber} (last was: ${lastOrderNumber})`);
+    return nextOrderNumber;
+    
+  } catch (error) {
+    console.error('Error generating order number:', error);
+    // Fallback: return base number with time component
+    const baseNumber = (orderType || '').toLowerCase() === 'takeaway' ? 2000 : 1000;
+    const timeComponent = new Date().getHours() * 100 + new Date().getMinutes();
+    const fallbackNumber = baseNumber + (timeComponent % 100);
+    console.log(`Using fallback order number: ${fallbackNumber}`);
+    return fallbackNumber;
+  }
+}
+
+// Helper function to update existing table status
+function updateTableStatus(sessionId, tableId, newStatus, action) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    const data = sheet.getDataRange().getValues();
+    
+    const normalizedTableId = normalizeTableId(tableId);
+    
+    // Find the most recent row for this session/table
+    for (let i = data.length - 1; i >= 1; i--) { // Start from bottom, skip header
+      const row = data[i];
+      const rowSessionId = row[1];
+      const rowTableId = normalizeTableId(row[2]);
+      const currentStatus = row[5];
+      
+      if (rowSessionId === sessionId && 
+          rowTableId === normalizedTableId && 
+          (currentStatus === "Table Occupied" || currentStatus === "Occupied" || currentStatus === "Pending")) {
+        
+        // Update the existing row
+        sheet.getRange(i + 1, 5).setValue(action); // Column E: Action
+        sheet.getRange(i + 1, 6).setValue(newStatus); // Column F: Status
+        sheet.getRange(i + 1, 8).setValue(new Date()); // Column H: End time
+        
+        console.log(`Updated row ${i + 1} for table ${normalizedTableId}`);
+        return;
+      }
+    }
+    
+    // If no existing row found, create new one
+    sheet.appendRow([
+      new Date(),
+      sessionId,
+      normalizedTableId,
+      "dine-in",
+      action,
+      newStatus,
+      "N/A",
+      new Date(),
+      "Guest",
+      "" // Order Number (empty for table release)
+    ]);
+    
+  } catch (error) {
+    console.error('Error updating table status:', error);
+  }
+}
+
+// FIXED: Enhanced table ID normalization with better matching
+function normalizeTableId(tableId) {
+  if (!tableId) return "";
+  
+  let normalized = tableId.toString().toLowerCase().trim();
+  
+  // Handle takeaway/counter specifically
+  if (normalized === 'takeaway' || normalized === 'counter') {
+    return 'takeaway';
+  }
+  
+  // Handle various table formats
+  if (normalized.includes("table")) {
+    const match = normalized.match(/table[_\s]*(\d+)/);
+    if (match) {
+      return "table" + match[1];
+    }
+  }
+  
+  // Handle direct number input (convert to tableX format)
+  if (/^\d+$/.test(normalized)) {
+    return "table" + normalized;
+  }
+  
+  // Handle tableX format directly
+  if (/^table\d+$/.test(normalized)) {
+    return normalized;
+  }
+  
+  return normalized;
+}
+
+// Handle OPTIONS request for CORS preflight
+function doOptions(e) {
+  return ContentService
+    .createTextOutput("")
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    
+    if (action === 'get_table_status') {
+      const occupiedTables = getOccupiedTables();
+      
+      console.log('Current occupied tables:', occupiedTables);
+      
+      return ContentService
+        .createTextOutput(JSON.stringify({
+          occupied_tables: occupiedTables,
+          timestamp: new Date().getTime(),
+          status: "success"
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        error: "Unknown action",
+        available_actions: ["get_table_status"],
+        timestamp: new Date().getTime()
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (error) {
+    console.error('Error in doGet:', error);
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        error: "Internal server error: " + error.toString(),
+        timestamp: new Date().getTime()
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// CRITICAL FIX: Enhanced table status checking to properly detect ALL occupied states
+function getOccupiedTables() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Sheet1");
+    const data = sheet.getDataRange().getValues();
+    const now = new Date();
+    
+    console.log('=== CHECKING TABLE OCCUPANCY ===');
+    console.log('Total rows to check:', data.length - 1);
+    
+    // Track the latest status for each table
+    const tableStatusMap = new Map();
+    
+    // Check all entries from most recent to oldest
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    for (let i = data.length - 1; i >= 1; i--) { // Start from bottom (most recent)
+      const row = data[i];
+      const timestamp = new Date(row[0]);
+      const tableId = normalizeTableId(row[2]);
+      const status = (row[5] || '').toString().trim();
+      const occupiedUntil = new Date(row[7]);
+      const orderType = (row[3] || '').toString().toLowerCase().trim();
+      
+      // Skip old entries and non-dine-in entries
+      if (timestamp < oneDayAgo || !tableId || tableId === 'takeaway' || orderType === 'takeaway') {
+        continue;
+      }
+      
+      // Skip if we already have a more recent entry for this table
+      if (tableStatusMap.has(tableId)) {
+        continue;
+      }
+      
+      console.log(`Checking row ${i}: table=${tableId}, status="${status}", until=${occupiedUntil.toISOString()}, now=${now.toISOString()}`);
+      
+      // CRITICAL FIX: Check for ALL status types that indicate table is occupied
+      const isOccupiedStatus = status === "Table Occupied" || 
+                              status === "Occupied" || 
+                              status === "Pending" ||
+                              status === "Processing" ||
+                              status.includes("Occupied"); // Catch any variations
+      
+      const isStillOccupied = now < occupiedUntil;
+      
+      console.log(`  - isOccupiedStatus: ${isOccupiedStatus}, isStillOccupied: ${isStillOccupied}`);
+      
+      // Record this as the latest status for this table
+      if (isOccupiedStatus && isStillOccupied) {
+        tableStatusMap.set(tableId, {
+          status: status,
+          until: occupiedUntil,
+          occupied: true
+        });
+        console.log(`  ✅ Table ${tableId} is OCCUPIED (status: ${status}, until: ${occupiedUntil})`);
+      } else {
+        // Check if this is a release event
+        const isReleaseStatus = status === "Available" || 
+                               status === "Table Released" ||
+                               status === "Released" ||
+                               status.includes("Released");
+        
+        tableStatusMap.set(tableId, {
+          status: status,
+          until: occupiedUntil,
+          occupied: false,
+          released: isReleaseStatus
+        });
+        console.log(`  ❌ Table ${tableId} is AVAILABLE (status: ${status})`);
+      }
+    }
+    
+    // Extract occupied tables from the map
+    const occupiedTables = [];
+    for (const [tableId, tableData] of tableStatusMap) {
+      if (tableData.occupied) {
+        // Only add table IDs that look like actual tables
+        if (tableId.startsWith('table') && tableId !== 'takeaway') {
+          occupiedTables.push(tableId);
+          console.log(`➡️ Adding ${tableId} to occupied list`);
+        }
+      }
+    }
+    
+    console.log(`=== FINAL RESULT ===`);
+    console.log(`Total tables checked: ${tableStatusMap.size}`);
+    console.log(`Occupied tables found: ${occupiedTables.length} -> [${occupiedTables.join(', ')}]`);
+    console.log(`==================`);
+    
+    return occupiedTables;
+    
+  } catch (error) {
+    console.error('Error getting occupied tables:', error);
+    return [];
+  }
+}
