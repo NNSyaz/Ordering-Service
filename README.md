@@ -81,7 +81,7 @@ This project communicates with a **Google Apps Script** backend to:
    - GitHub Pages menu URL in `OrderingActivity.kt`
 
 4. Set up Google Sheet & Apps Script webhook:
-   - [See Google Sheet Setup Guide](docs/sheet_setup.md)
+   - [See Google Sheet Setup Guide](sheet_setup.md)
 
 5. Configure Temi:
    - Create `table1`, `table2`, etc. in Temi locations
