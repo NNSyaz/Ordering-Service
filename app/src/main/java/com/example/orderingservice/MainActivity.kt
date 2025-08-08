@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity(),
 
     private lateinit var binding: ActivityGreetingBinding
     private lateinit var robot: Robot
+    private lateinit var tableStatusManager: TableStatusManager
     private var sessionId: String = ""
     private var currentBattery: Int = 100
     private val timeoutHandler = Handler(Looper.getMainLooper())
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity(),
         const val CRITICAL_BATTERY_THRESHOLD = 15
         const val STANDBY_LOCATION = "standby"
         const val AUTO_GREETING_DELAY = 3000L // 3 seconds delay before auto greeting
+        private const val TAG = "MainActivity"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,13 +51,14 @@ class MainActivity : AppCompatActivity(),
 
         // Generate new session ID
         sessionId = UUID.randomUUID().toString()
-        Log.d("TemiApp", "New session started: $sessionId")
+        Log.d(TAG, "New session started: $sessionId")
 
         setupUI()
         initializeTemi()
+        initializeTableStatusManager()
 
         // Don't go to standby immediately - wait for robot to be ready
-        Log.d("TemiApp", "Waiting for robot to be ready before navigation...")
+        Log.d(TAG, "Waiting for robot to be ready before navigation...")
     }
 
     private fun setupUI() {
@@ -82,13 +85,34 @@ class MainActivity : AppCompatActivity(),
             tvBattery.text = "Battery: ${currentBattery}%"
 
             // Initially hide buttons until ready
-            btnDineIn.visibility = android.view.View.VISIBLE
-            btnTakeaway.visibility = android.view.View.VISIBLE
+            btnDineIn.visibility = android.view.View.INVISIBLE
+            btnTakeaway.visibility = android.view.View.INVISIBLE
         }
     }
 
     private fun initializeTemi() {
         robot = Robot.getInstance()
+    }
+
+    private fun initializeTableStatusManager() {
+        tableStatusManager = TableStatusManager.getInstance()
+
+        // CRITICAL FIX: Initialize table status manager and check server connectivity
+        Log.d(TAG, "Initializing TableStatusManager and checking server status...")
+
+        // Perform initial refresh to check server connectivity
+        tableStatusManager.refreshTableStatus(
+            onSuccess = { occupiedTables ->
+                Log.d(TAG, "✅ TableStatusManager initialized successfully")
+                Log.d(TAG, "Initial occupied tables: $occupiedTables")
+                Log.d(TAG, "Server status: ${if (tableStatusManager.isServerAvailable()) "Available" else "Unavailable"}")
+            },
+            onError = { error ->
+                Log.w(TAG, "⚠️ TableStatusManager initialization with server error: $error")
+                Log.d(TAG, "Server status: ${if (tableStatusManager.isServerAvailable()) "Available" else "Unavailable"}")
+                // Continue anyway - will use local fallback if needed
+            }
+        )
     }
 
     override fun onStart() {
@@ -108,12 +132,26 @@ class MainActivity : AppCompatActivity(),
         timeoutHandler.removeCallbacksAndMessages(null)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        timeoutHandler.removeCallbacksAndMessages(null)
+
+        // CRITICAL FIX: Cleanup TableStatusManager when app is destroyed
+        try {
+            Log.d(TAG, "Cleaning up TableStatusManager...")
+            tableStatusManager.cleanup()
+            Log.d(TAG, "✅ TableStatusManager cleaned up successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error cleaning up TableStatusManager", e)
+        }
+    }
+
     private fun goToStandbyPosition() {
-        Log.d("TemiApp", "Attempting to go to standby position")
+        Log.d(TAG, "Attempting to go to standby position")
 
         // Check if robot is ready first
         if (!robot.isReady) {
-            Log.w("TemiApp", "Robot not ready for navigation, waiting...")
+            Log.w(TAG, "Robot not ready for navigation, waiting...")
             binding.tvWelcome.text = "⚠️ Robot not ready, please wait..."
 
             // Retry after a delay
@@ -121,7 +159,7 @@ class MainActivity : AppCompatActivity(),
                 if (robot.isReady) {
                     goToStandbyPosition()
                 } else {
-                    Log.e("TemiApp", "Robot still not ready after delay, starting from current position")
+                    Log.e(TAG, "Robot still not ready after delay, starting from current position")
                     hasArrivedAtStandby = true
                     startAutoGreeting()
                 }
@@ -135,10 +173,10 @@ class MainActivity : AppCompatActivity(),
         hasGreeted = false
 
         try {
-            Log.d("TemiApp", "Calling robot.goTo($STANDBY_LOCATION)")
+            Log.d(TAG, "Calling robot.goTo($STANDBY_LOCATION)")
             robot.goTo(STANDBY_LOCATION)
         } catch (e: Exception) {
-            Log.e("TemiApp", "Error calling goTo: ${e.message}")
+            Log.e(TAG, "Error calling goTo: ${e.message}")
             isNavigatingToStandby = false
 
             // Fallback to current position
@@ -152,7 +190,7 @@ class MainActivity : AppCompatActivity(),
 
     override fun onRobotReady(isReady: Boolean) {
         if (isReady) {
-            Log.d("TemiApp", "Robot is ready!")
+            Log.d(TAG, "Robot is ready!")
 
             // Check initial battery
             val batteryData = robot.batteryData
@@ -163,7 +201,7 @@ class MainActivity : AppCompatActivity(),
             // Check if standby location exists
             checkAndGoToStandby()
         } else {
-            Log.w("TemiApp", "Robot is not ready yet")
+            Log.w(TAG, "Robot is not ready yet")
             binding.tvWelcome.text = "⚠️ Robot not ready, please wait..."
         }
     }
@@ -171,26 +209,26 @@ class MainActivity : AppCompatActivity(),
     private fun checkAndGoToStandby() {
         // Get list of saved locations to verify standby exists
         val locations = robot.locations
-        Log.d("TemiApp", "Available locations: ${locations.joinToString(", ")}")
+        Log.d(TAG, "Available locations: ${locations.joinToString(", ")}")
 
         if (locations.contains(STANDBY_LOCATION)) {
-            Log.d("TemiApp", "Standby location found, navigating...")
+            Log.d(TAG, "Standby location found, navigating...")
             goToStandbyPosition()
         } else {
-            Log.w("TemiApp", "Standby location '$STANDBY_LOCATION' not found!")
-            Log.w("TemiApp", "Available locations: ${locations.joinToString(", ")}")
+            Log.w(TAG, "Standby location '$STANDBY_LOCATION' not found!")
+            Log.w(TAG, "Available locations: ${locations.joinToString(", ")}")
 
             // Try alternative locations
             val alternativeLocations = listOf("greeting", "entrance", "front", "lobby")
             val foundAlternative = alternativeLocations.find { locations.contains(it) }
 
             if (foundAlternative != null) {
-                Log.d("TemiApp", "Using alternative location: $foundAlternative")
+                Log.d(TAG, "Using alternative location: $foundAlternative")
                 binding.tvWelcome.text = "📍 Going to $foundAlternative position..."
                 robot.goTo(foundAlternative)
                 isNavigatingToStandby = true
             } else {
-                Log.w("TemiApp", "No suitable location found, starting greeting from current position")
+                Log.w(TAG, "No suitable location found, starting greeting from current position")
                 hasArrivedAtStandby = true
                 binding.tvWelcome.text = "👋 Ready to greet customers..."
                 Handler(Looper.getMainLooper()).postDelayed({
@@ -206,21 +244,21 @@ class MainActivity : AppCompatActivity(),
         descriptionId: Int,
         description: String
     ) {
-        Log.d("TemiApp", "Navigation status: $status for location: $location (description: $description)")
+        Log.d(TAG, "Navigation status: $status for location: $location (description: $description)")
 
         // Handle both standby and alternative locations
         if ((location == STANDBY_LOCATION || location in listOf("greeting", "entrance", "front", "standby")) && isNavigatingToStandby) {
             when (status) {
                 "start" -> {
-                    Log.d("TemiApp", "Started navigation to $location")
+                    Log.d(TAG, "Started navigation to $location")
                     binding.tvWelcome.text = "🚶‍♂️ Moving to greeting position..."
                 }
                 "going" -> {
-                    Log.d("TemiApp", "Going to $location")
+                    Log.d(TAG, "Going to $location")
                     binding.tvWelcome.text = "🎯 On my way to greet customers..."
                 }
                 "complete" -> {
-                    Log.d("TemiApp", "Arrived at $location")
+                    Log.d(TAG, "Arrived at $location")
                     hasArrivedAtStandby = true
                     isNavigatingToStandby = false
                     binding.tvWelcome.text = "👋 Ready to welcome customers..."
@@ -231,7 +269,7 @@ class MainActivity : AppCompatActivity(),
                     }, 1000)
                 }
                 "abort" -> {
-                    Log.w("TemiApp", "Failed to reach $location - reason: $description")
+                    Log.w(TAG, "Failed to reach $location - reason: $description")
                     isNavigatingToStandby = false
                     hasArrivedAtStandby = true // Treat as arrived for fallback
                     binding.tvWelcome.text = "⚠️ Navigation failed, starting from here..."
@@ -242,7 +280,7 @@ class MainActivity : AppCompatActivity(),
                     }, 2000)
                 }
                 else -> {
-                    Log.d("TemiApp", "Navigation status '$status' for $location: $description")
+                    Log.d(TAG, "Navigation status '$status' for $location: $description")
                 }
             }
         }
@@ -250,11 +288,14 @@ class MainActivity : AppCompatActivity(),
 
     private fun startAutoGreeting() {
         if (!hasArrivedAtStandby || hasGreeted) {
-            Log.d("TemiApp", "Skipping auto greeting - not ready or already greeted")
+            Log.d(TAG, "Skipping auto greeting - not ready or already greeted")
             return
         }
 
-        Log.d("TemiApp", "Starting auto greeting sequence")
+        Log.d(TAG, "Starting auto greeting sequence")
+
+        // CRITICAL FIX: Refresh table status before greeting customers
+        refreshTableStatusBeforeGreeting()
 
         // Wait a bit then start greeting automatically
         Handler(Looper.getMainLooper()).postDelayed({
@@ -264,13 +305,44 @@ class MainActivity : AppCompatActivity(),
         }, AUTO_GREETING_DELAY)
     }
 
+    /**
+     * CRITICAL FIX: Refresh table status before greeting to ensure accurate availability
+     */
+    private fun refreshTableStatusBeforeGreeting() {
+        Log.d(TAG, "🔄 Refreshing table status before greeting customers...")
+
+        tableStatusManager.refreshTableStatus(
+            onSuccess = { occupiedTables ->
+                Log.d(TAG, "✅ Table status refreshed successfully before greeting")
+                Log.d(TAG, "Currently occupied tables: $occupiedTables")
+
+                if (occupiedTables.isNotEmpty()) {
+                    Log.d(TAG, "📊 Table occupancy status:")
+                    occupiedTables.forEach { tableId ->
+                        Log.d(TAG, "  - $tableId: OCCUPIED")
+                    }
+                }
+
+                // Log current TableStatusManager status
+                Log.d(TAG, tableStatusManager.getDetailedStatus())
+            },
+            onError = { error ->
+                Log.w(TAG, "⚠️ Table status refresh error before greeting: $error")
+                Log.d(TAG, "Server available: ${tableStatusManager.isServerAvailable()}")
+
+                // Still show detailed status for debugging
+                Log.d(TAG, tableStatusManager.getDetailedStatus())
+            }
+        )
+    }
+
     private fun greetCustomer() {
         if (hasGreeted) {
             return
         }
 
         hasGreeted = true
-        Log.d("TemiApp", "Starting customer greeting")
+        Log.d(TAG, "Starting customer greeting")
 
         val greetingMessages = listOf(
             "Hello there! Welcome to our restaurant! I'm your friendly assistant robot. How would you like to enjoy your meal with us?",
@@ -299,7 +371,7 @@ class MainActivity : AppCompatActivity(),
 
     // Implement Robot.TtsListener
     override fun onTtsStatusChanged(ttsRequest: TtsRequest) {
-        Log.d("TemiApp", "TTS Status changed: ${ttsRequest.status} for message: ${ttsRequest.speech}")
+        Log.d(TAG, "TTS Status changed: ${ttsRequest.status} for message: ${ttsRequest.speech}")
 
         when (ttsRequest.status) {
             TtsRequest.Status.STARTED -> {
@@ -319,14 +391,14 @@ class MainActivity : AppCompatActivity(),
                 }
             }
             TtsRequest.Status.PENDING -> {
-                Log.d("TemiApp", "TTS is pending")
+                Log.d(TAG, "TTS is pending")
             }
             TtsRequest.Status.PROCESSING -> {
-                Log.d("TemiApp", "TTS is processing")
+                Log.d(TAG, "TTS is processing")
                 isSpeaking = true
             }
             TtsRequest.Status.NOT_ALLOWED -> {
-                Log.w("TemiApp", "TTS not allowed")
+                Log.w(TAG, "TTS not allowed")
                 isSpeaking = false
 
                 // Execute any pending navigation even when not allowed
@@ -341,7 +413,7 @@ class MainActivity : AppCompatActivity(),
     }
 
     private fun speakAndWait(message: String, onComplete: (() -> Unit)? = null) {
-        Log.d("TemiApp", "Speaking: $message")
+        Log.d(TAG, "Speaking: $message")
         isSpeaking = true
 
         val ttsRequest = TtsRequest.create(message, false)
@@ -426,12 +498,18 @@ class MainActivity : AppCompatActivity(),
         timeoutHandler.removeCallbacksAndMessages(null)
 
         val messages = listOf(
-            "Fantastic choice! I'll help you create the perfect takeaway order with all your favorite dishes. Let's get started!",
-            "Perfect for on-the-go! I'm excited to help you put together a delicious takeaway meal that you'll absolutely love.",
-            "Great idea! Let me assist you in selecting some amazing dishes for your takeaway order. This is going to be delicious!"
+            "Fantastic choice! Let's get started!",
+            "Perfect for on-the-go! I'm excited to help you put together a delicious takeaway meal.",
+            "Great idea! Let me assist you in selecting some amazing dishes for your takeaway order."
         )
 
         speakAndWait(messages.random()) {
+            // CRITICAL FIX: For takeaway, immediately mark as occupied locally to prevent conflicts
+            if (orderType.equals("Takeaway", ignoreCase = true)) {
+                Log.d(TAG, "Marking takeaway counter as occupied locally")
+                tableStatusManager.addOccupiedTable("takeaway")
+            }
+
             val intent = Intent(this, OrderingActivity::class.java).apply {
                 putExtra("SESSION_ID", sessionId)
                 putExtra("ORDER_TYPE", orderType)
@@ -471,13 +549,12 @@ class MainActivity : AppCompatActivity(),
         binding.btnDineIn.visibility = android.view.View.VISIBLE
         binding.btnTakeaway.visibility = android.view.View.VISIBLE
 
+        // CRITICAL FIX: Refresh table status when resetting to ensure accuracy
+        Log.d(TAG, "Resetting to greeting - refreshing table status for accuracy")
+        refreshTableStatusBeforeGreeting()
+
         Handler(Looper.getMainLooper()).postDelayed({
             goToStandbyPosition()
         }, 1000)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        timeoutHandler.removeCallbacksAndMessages(null)
     }
 }

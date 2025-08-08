@@ -229,11 +229,21 @@ class NavigationActivity : AppCompatActivity(),
                     initializeWorkingTablesAsUnavailable()
                 }
 
-                // Make all current tables available on error (fallback)
-                workingTables.forEach { table ->
-                    table.isAvailable = true
-                    table.occupancyStatus = Table.OccupancyStatus.AVAILABLE
-                    Log.d(TAG, "  Set ${table.name} as available (error fallback)")
+                // CRITICAL FIX: Use server availability status to determine fallback behavior
+                if (tableStatusManager.isServerAvailable()) {
+                    Log.w(TAG, "Server available but returned error - showing all as available")
+                    // Make all current tables available on error (fallback)
+                    workingTables.forEach { table ->
+                        table.isAvailable = true
+                        table.occupancyStatus = Table.OccupancyStatus.AVAILABLE
+                        Log.d(TAG, "  Set ${table.name} as available (error fallback)")
+                    }
+                } else {
+                    Log.w(TAG, "Server not available - using local occupied state")
+                    // Use local occupied tables from TableStatusManager
+                    val localOccupiedTables = tableStatusManager.getCurrentOccupiedTables()
+                    Log.d(TAG, "Using local occupied tables: $localOccupiedTables")
+                    updateTableAvailability(localOccupiedTables)
                 }
 
                 // CRITICAL: Use safeUpdateTables to prevent clearing
@@ -254,7 +264,7 @@ class NavigationActivity : AppCompatActivity(),
     private fun updateTableAvailability(occupiedTables: List<String>) {
         Log.d(TAG, "=== UPDATING TABLE AVAILABILITY ===")
         Log.d(TAG, "Working tables BEFORE update: ${workingTables.size}")
-        Log.d(TAG, "Occupied tables from server: $occupiedTables")
+        Log.d(TAG, "Occupied tables from server/local: $occupiedTables")
 
         // CRITICAL: Validate working tables before updating
         if (workingTables.isEmpty()) {
@@ -295,14 +305,17 @@ class NavigationActivity : AppCompatActivity(),
 
                 Log.d(TAG, "Working tables count AFTER update: ${workingTables.size}")
 
-                // CRITICAL: Use safeUpdateTables instead of updateTables
+                // CRITICAL: Use safeUpdateTables instead of updateTables - NEVER pass empty list
                 if (workingTables.isNotEmpty()) {
-                    tableAdapter.safeUpdateTables(workingTables)
+                    // FIXED: Create a defensive copy to prevent clearing during update
+                    val safeCopyForUpdate = workingTables.map { it.copy() }.toMutableList()
+                    tableAdapter.safeUpdateTables(safeCopyForUpdate)
                 } else {
                     Log.e(TAG, "🚨 Working tables became empty after update! Restoring backup...")
                     workingTables.clear()
                     workingTables.addAll(backupTables)
-                    tableAdapter.safeUpdateTables(workingTables)
+                    val restoreCopy = workingTables.map { it.copy() }.toMutableList()
+                    tableAdapter.safeUpdateTables(restoreCopy)
                 }
 
                 updateStatusText()
@@ -321,7 +334,8 @@ class NavigationActivity : AppCompatActivity(),
                 // Restore backup on error
                 workingTables.clear()
                 workingTables.addAll(backupTables)
-                tableAdapter.safeUpdateTables(workingTables)
+                val errorRecoveryCopy = workingTables.map { it.copy() }.toMutableList()
+                tableAdapter.safeUpdateTables(errorRecoveryCopy)
             }
         }
     }
@@ -434,6 +448,10 @@ class NavigationActivity : AppCompatActivity(),
             Log.d(TAG, "Table ${table.name} is already being processed, ignoring selection")
             return
         }
+
+        // CRITICAL FIX: Immediately mark table as occupied locally to prevent double selection
+        Log.d(TAG, "✅ Table ${table.name} selected - immediately marking as occupied locally")
+        tableStatusManager.addOccupiedTable(table.locationId)
 
         // Mark as selected and start navigation
         selectedTable = table
@@ -558,6 +576,9 @@ class NavigationActivity : AppCompatActivity(),
         table.occupancyStatus = Table.OccupancyStatus.AVAILABLE
         tableAdapter.clearTableProcessing(table.locationId)
 
+        // CRITICAL FIX: Remove from local occupied list on navigation error
+        tableStatusManager.removeOccupiedTable(table.locationId)
+
         // FIXED: Re-enable table interaction after error
         enableTableInteraction()
 
@@ -632,11 +653,11 @@ class NavigationActivity : AppCompatActivity(),
                 battery = currentBattery,
                 customerName = "Guest", // You could get this from user input if needed
                 onSuccess = {
-                    Log.d(TAG, "Table $location marked as occupied successfully")
+                    Log.d(TAG, "✅ Table $location marked as occupied successfully via webhook")
                 },
                 onError = { error ->
-                    Log.e(TAG, "Failed to mark table as occupied: $error")
-                    // Continue anyway - the table occupation will be handled locally
+                    Log.e(TAG, "❌ Failed to mark table as occupied via webhook: $error")
+                    // Local state is already updated, so continue anyway
                 }
             )
 
@@ -658,15 +679,16 @@ class NavigationActivity : AppCompatActivity(),
         finish()
     }
 
-    // TableStatusListener implementation
+    // CRITICAL FIX: TableStatusListener implementation to handle real-time updates
     override fun onTableStatusChanged(occupiedTables: List<String>) {
-        Log.d(TAG, "Table status changed notification received: $occupiedTables")
+        Log.d(TAG, "🔔 Real-time table status change notification received: $occupiedTables")
 
         // FIXED: Only update if not currently loading and have working tables initialized
         if (workingTables.isNotEmpty() && !isLoadingTableStatus) {
+            Log.d(TAG, "Applying real-time table status update")
             updateTableAvailability(occupiedTables)
         } else {
-            Log.w(TAG, "Ignoring table status change - working tables not initialized or still loading")
+            Log.w(TAG, "Ignoring real-time table status change - working tables not initialized or still loading")
         }
     }
 

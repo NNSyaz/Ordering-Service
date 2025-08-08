@@ -35,9 +35,9 @@ object Constants {
     )
 
     // URLs - UPDATED WITH NEW GOOGLE APPS SCRIPT URL
-    const val MENU_BASE_URL = "https://nnsyaz.github.io/restaurant-menu-qr/"
-    const val WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxNqFPi14W-Th2qTY-sKI0N_Ya4GF27IBBkBv4-EkX2h03n0GOFKbLHPKrU_iiYMZWlJw/exec"
-    const val TABLE_STATUS_API_URL = "https://script.google.com/macros/s/AKfycbxNqFPi14W-Th2qTY-sKI0N_Ya4GF27IBBkBv4-EkX2h03n0GOFKbLHPKrU_iiYMZWlJw/exec?action=get_table_status"
+    const val MENU_BASE_URL = "https://nnsyaz.github.io/restaurant-menu/"
+    const val WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzFwuNl9EHue-XMDEd14qPIJ1SC0IMgFHx00O60nKxteS1gqL80xi1WdSo8pM_yoi57NQ/exec"
+    const val TABLE_STATUS_API_URL = "https://script.google.com/macros/s/AKfycbzFwuNl9EHue-XMDEd14qPIJ1SC0IMgFHx00O60nKxteS1gqL80xi1WdSo8pM_yoi57NQ/exec?action=get_table_status"
 
     // Face Detection Settings (for Temi SDK 1.136.0)
     const val FACE_DETECTION_ENABLED = true

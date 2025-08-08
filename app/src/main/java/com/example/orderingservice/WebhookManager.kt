@@ -2,6 +2,7 @@ package com.example.orderingservice
 
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -11,13 +12,13 @@ import java.util.concurrent.TimeUnit
 object WebhookManager {
 
     // UPDATED URL with new Google Apps Script
-    private const val WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxNqFPi14W-Th2qTY-sKI0N_Ya4GF27IBBkBv4-EkX2h03n0GOFKbLHPKrU_iiYMZWlJw/exec"
+    private const val WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzFwuNl9EHue-XMDEd14qPIJ1SC0IMgFHx00O60nKxteS1gqL80xi1WdSo8pM_yoi57NQ/exec"
     private const val TAG = "WebhookManager"
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS) // Increased timeout
+        .writeTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS) // Increased for order processing
         .retryOnConnectionFailure(true)
         .build()
 
@@ -57,9 +58,61 @@ object WebhookManager {
         override val timestamp: Long = System.currentTimeMillis()
     ) : WebhookPayload()
 
+    // NEW: QR Selection Payload
+    data class QRSelectionPayload(
+        override val session_id: String,
+        override val table_no: String,
+        override val order_type: String,
+        override val battery: Int,
+        override val customer_name: String = "Guest",
+        override val status: String = "qr_selected",
+        override val timestamp: Long = System.currentTimeMillis()
+    ) : WebhookPayload()
+
+    data class WebhookResponse(
+        val status: String,
+        val message: String,
+        val order_number: String? = null,
+        val timestamp: Long? = null
+    )
+
     /**
-     * Sends an order webhook with menu items
+     * NEW: Sends a QR selection webhook to log the interaction without generating order number
      */
+    fun sendQRSelectionWebhook(
+        sessionId: String,
+        tableNo: String,
+        orderType: String,
+        battery: Int,
+        customerName: String = "Guest",
+        onSuccess: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        val normalizedOrderType = when (orderType.lowercase().trim()) {
+            "dine-in", "dine in", "dinein" -> "dine-in"
+            "takeaway", "take away", "take-away" -> "takeaway"
+            else -> orderType.lowercase().trim()
+        }
+
+        val payload = QRSelectionPayload(
+            session_id = sessionId,
+            table_no = tableNo,
+            order_type = normalizedOrderType,
+            battery = battery,
+            customer_name = customerName
+        )
+
+        Log.d(TAG, "🔄 Sending QR selection webhook for $normalizedOrderType")
+
+        sendWebhook(payload, { _ ->
+            Log.d(TAG, "✅ QR selection webhook successful")
+            onSuccess?.invoke()
+        }, { error ->
+            Log.e(TAG, "❌ QR selection webhook failed: $error")
+            onError?.invoke(error)
+        })
+    }
+
     fun sendOrderWebhook(
         sessionId: String,
         tableNo: String,
@@ -90,7 +143,6 @@ object WebhookManager {
             onSuccess?.invoke(responseOrderNumber)
         }, onError)
     }
-
     /**
      * Sends a table occupied webhook
      */
@@ -115,6 +167,7 @@ object WebhookManager {
             onSuccess?.invoke()
         }, onError)
     }
+
 
     /**
      * Generic method to send any webhook payload
