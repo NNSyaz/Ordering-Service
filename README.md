@@ -11,6 +11,15 @@ An Android application for an ordering service robot that assists customers with
 - **Server Communication** – Logs table status, order placement, and QR code selections to Google Apps Script.
 - **Table Status Manager** – Fetches table availability from the server or uses a local fallback.
 - **Error Handling** – Includes fallbacks for navigation, TTS, and server request failures.
+  
+📱 System Architecture
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Temi Robot    │    │  Android App    │    │  Google Apps    │
+│                 │◄──►│                 │◄──►│     Script      │
+│  - Navigation   │    │  - UI Control   │    │  - Data Logging │
+│  - Speech       │    │  - State Mgmt   │    │  - Table Status │
+│  - Battery      │    │  - API Calls    │    │  - Order Mgmt   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 
 ## 📂 Project Structure
 
