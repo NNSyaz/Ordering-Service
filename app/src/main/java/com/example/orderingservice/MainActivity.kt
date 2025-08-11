@@ -34,6 +34,9 @@ class MainActivity : AppCompatActivity(),
     private var hasArrivedAtStandby = false
     private var hasGreeted = false
     private var pendingNavigation: (() -> Unit)? = null
+    private var staffAccessClickCount = 0
+    private var lastClickTime = 0L
+    private val staffAccessHandler = Handler(Looper.getMainLooper())
 
     companion object {
         const val TIMEOUT_DURATION = 60000L // 60 seconds for user interaction
@@ -88,6 +91,7 @@ class MainActivity : AppCompatActivity(),
             btnDineIn.visibility = android.view.View.INVISIBLE
             btnTakeaway.visibility = android.view.View.INVISIBLE
         }
+        setupStaffAccess()  // Add staff close button functionality
     }
 
     private fun initializeTemi() {
@@ -135,6 +139,7 @@ class MainActivity : AppCompatActivity(),
     override fun onDestroy() {
         super.onDestroy()
         timeoutHandler.removeCallbacksAndMessages(null)
+        staffAccessHandler.removeCallbacksAndMessages(null)  // Clean up staff access handler
 
         // CRITICAL FIX: Cleanup TableStatusManager when app is destroyed
         try {
@@ -247,7 +252,7 @@ class MainActivity : AppCompatActivity(),
         Log.d(TAG, "Navigation status: $status for location: $location (description: $description)")
 
         // Handle both standby and alternative locations
-        if ((location == STANDBY_LOCATION || location in listOf("greeting", "entrance", "front", "standby")) && isNavigatingToStandby) {
+        if ((location == STANDBY_LOCATION || location in listOf("standby")) && isNavigatingToStandby) {
             when (status) {
                 "start" -> {
                     Log.d(TAG, "Started navigation to $location")
@@ -475,6 +480,52 @@ class MainActivity : AppCompatActivity(),
         }
     }
 
+    private fun setupStaffAccess() {
+        // Triple tap on app title to reveal close button (staff access)
+        binding.tvAppTitle.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+
+            // Reset count if more than 2 seconds between clicks
+            if (currentTime - lastClickTime > 2000) {
+                staffAccessClickCount = 0
+            }
+
+            staffAccessClickCount++
+            lastClickTime = currentTime
+
+            if (staffAccessClickCount >= 3) {
+                // Show staff close button
+                binding.staffCloseButton.visibility = android.view.View.VISIBLE
+                staffAccessClickCount = 0
+
+                speakAndWait("Staff access activated. Close button is now available.") {}
+
+                // Auto-hide after 30 seconds
+                staffAccessHandler.postDelayed({
+                    binding.staffCloseButton.visibility = android.view.View.GONE
+                    speakAndWait("Staff close button hidden for security.") {}
+                }, 30000)
+            } else if (staffAccessClickCount == 2) {
+                speakAndWait("Tap once more to access staff controls.") {}
+            }
+        }
+
+        // Close button functionality
+        binding.btnStaffClose.setOnClickListener {
+            speakAndWait("Application shutting down. Have a great day!") {
+                // Clean up resources
+                try {
+                    tableStatusManager.cleanup()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error cleaning up during close", e)
+                }
+
+                // Close application completely
+                finishAffinity()
+                System.exit(0)
+            }
+        }
+    }
     private fun navigateToTableSelection(orderType: String) {
         timeoutHandler.removeCallbacksAndMessages(null)
 
