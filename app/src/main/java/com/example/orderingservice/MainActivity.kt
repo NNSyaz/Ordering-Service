@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity(),
             isNavigatingToStandby = false
 
             // Fallback to current position
-            binding.tvWelcome.text = "⚠️ Navigation error, starting from here..."
+            binding.tvWelcome.text = "\u200D♂\uFE0F Moving to greeting position..."
             hasArrivedAtStandby = true
             Handler(Looper.getMainLooper()).postDelayed({
                 startAutoGreeting()
@@ -224,7 +224,7 @@ class MainActivity : AppCompatActivity(),
             Log.w(TAG, "Available locations: ${locations.joinToString(", ")}")
 
             // Try alternative locations
-            val alternativeLocations = listOf("greeting", "entrance", "front", "lobby")
+            val alternativeLocations = listOf("standby")
             val foundAlternative = alternativeLocations.find { locations.contains(it) }
 
             if (foundAlternative != null) {
@@ -274,14 +274,10 @@ class MainActivity : AppCompatActivity(),
                     }, 1000)
                 }
                 "abort" -> {
-                    Log.w(TAG, "Failed to reach $location - reason: $description")
-                    isNavigatingToStandby = false
-                    hasArrivedAtStandby = true // Treat as arrived for fallback
-                    binding.tvWelcome.text = "⚠️ Navigation failed, starting from here..."
-
-                    // Fallback: start greeting anyway after a delay
+                    Log.w(TAG, "Failed to reach $location - retrying once...")
                     Handler(Looper.getMainLooper()).postDelayed({
-                        startAutoGreeting()
+                        robot.getPosition()
+                        robot.goTo(location)
                     }, 2000)
                 }
                 else -> {
