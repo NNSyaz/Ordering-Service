@@ -183,7 +183,7 @@ class OrderingActivity : AppCompatActivity(), Robot.TtsListener {
 
         // FIXED: For QR choice, DON'T send any webhooks, just show QR code
         if (orderType.equals("Takeaway", ignoreCase = true)) {
-            speakAndWait("Great! Here's your QR code. Scan it to order on your phone.") {
+            speakAndWait("Here's your QR code. Scan it to order on your phone.") {
                 showQRCodeForTakeaway()
             }
         } else {
@@ -786,7 +786,7 @@ class OrderingActivity : AppCompatActivity(), Robot.TtsListener {
     }
 
     private fun handleBackPressed() {
-        speakAndWait("Going back to table selection.") {
+        speakAndWait("Going back to main page.") {
             // CRITICAL FIX: When going back, release the table locally to make it available again
             Log.d(TAG, "Back pressed - releasing table $tableNo locally")
             tableStatusManager.removeOccupiedTable(tableNo)
