@@ -643,7 +643,7 @@ class NavigationActivity : AppCompatActivity(),
         Log.d(TAG, "Navigation complete to ${table.name}")
 
         // FIXED: Shortened message, removed duplicate "arrived" confirmation
-        speakAndWait("Perfect! Welcome to ${table.name}. You can scan the QR code or use my ordering system. What would you prefer?") {
+        speakAndWait("Welcome to ${table.name}. You can scan the QR code or use my ordering system. What would you prefer?") {
 
             // Send webhook to mark table as occupied with customer name
             tableStatusManager.markTableOccupied(
