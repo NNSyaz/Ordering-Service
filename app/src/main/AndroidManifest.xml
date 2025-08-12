@@ -7,6 +7,8 @@
     <uses-permission android:name="com.robotemi.permission.MAP" />
     <uses-permission android:name="com.robotemi.permission.LOCATIONS" />
     <uses-permission android:name="com.robotemi.permission.SEQUENCE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:allowBackup="true"
